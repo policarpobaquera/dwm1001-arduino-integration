@@ -1,0 +1,69 @@
+/*///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////// LSD COGNITION /////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////
+
+Created 14th Apr 2021
+by Policarpo Baquera
+Carnegie Mellon University                                                     */
+
+/*/////////////////////////// ESP32 WROOM SETTINGS //////////////////////////////
+Tools > Board: Adafruit ESP32 Feather
+Tools > Upload speed: 115200
+*/
+
+/////////////////////////////// BNO080 IMU Sensor ///////////////////////////////
+#include <Wire.h>
+#include "SparkFun_BNO080_Arduino_Library.h"
+BNO080 myIMU;
+
+/////////////////////////////// BLUETOOTH SERIAL ////////////////////////////////
+#include <BluetoothSerial.h>
+BluetoothSerial SerialBT;
+
+#define RXD2 16
+#define TXD2 17
+String message;
+
+void setup() {
+  Serial.begin(115200);
+  // BNO080 Initialization
+  Wire.begin();
+  if (myIMU.begin() == false)
+  {
+    Serial.println(F("BNO080 not detected at default I2C address."));
+    while (1)
+      ;
+  }
+  Wire.setClock(400000);            //Increases I2C data rate to 400kHz
+  myIMU.enableRotationVector(1);    //Sends data update every 50ms
+  SerialBT.begin("ESP32");
+  
+  //Decawave DWM1001 Initialization
+  Serial2.begin(115200);            //DWM1001 require 115200 baud
+  Serial2.write(0x0D);              //"Enter"
+  Serial2.write(0x0D);              //"Enter" (gets into Shell Mode)
+  message = Serial1.readString();   //Reads the response from dwm1001
+  Serial2.write(0x6C);              //"l"
+  Serial2.write(0x65);              //"e"
+  Serial2.write(0x70);              //"p"
+  Serial2.write(0x0D);              //"Enter" (Sends the message "lep" to show position of tag)
+}
+
+void loop() {
+  //DWM1001 Position
+  SerialBT.print(Serial2.readStringUntil('\n'));    //Print position in Serial Monitor
+  SerialBT.print(F(","));
+  //BNO080 Orientation
+  if (myIMU.dataAvailable() == true)
+  {
+    float roll  = (myIMU.getRoll())  * 180.0 / PI;  //Convert roll  to degrees
+    float pitch = (myIMU.getPitch()) * 180.0 / PI;  //Convert pitch to degrees
+    float yaw   = (myIMU.getYaw())   * 180.0 / PI;  //Convert yaw   to degrees
+    SerialBT.print(roll, 1);
+    SerialBT.print(F(","));
+    SerialBT.print(pitch, 1);
+    SerialBT.print(F(","));
+    SerialBT.print(yaw, 1);
+    SerialBT.println();
+  }
+}
